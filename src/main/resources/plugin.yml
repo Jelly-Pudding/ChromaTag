@@ -1,0 +1,26 @@
+name: ChromaTag
+version: '1.0-SNAPSHOT'
+main: com.jellypudding.chromaTag.ChromaTag
+api-version: '1.21'
+description: "Customise player name colors for chat, the tab list, and above their heads."
+author: AlphaAlex115
+commands:
+  chromatag:
+    description: "Set and manage player name colors"
+    usage: "/chromatag <color|reset>"
+    aliases: [ct]
+    permission: chromatag.use
+    permission-message: "You don't have permission to use ChromaTag."
+permissions:
+  chromatag.use:
+    description: Allows use of the ChromaTag command
+    default: op
+  chromatag.set:
+    description: Allows setting name colors
+    default: op
+  chromatag.reset:
+    description: Allows resetting name colors to default
+    default: op
+  chromatag.reload:
+    description: Allows reloading the plugin configuration
+    default: op
