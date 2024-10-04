@@ -21,6 +21,3 @@ permissions:
   chromatag.reset:
     description: Allows resetting name colors to default
     default: op
-  chromatag.reload:
-    description: Allows reloading the plugin configuration
-    default: op

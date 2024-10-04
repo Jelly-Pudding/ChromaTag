@@ -25,6 +25,26 @@ public final class ChromaTag extends JavaPlugin implements Listener {
 
     private Map<UUID, TextColor> playerColors;
     private Scoreboard scoreboard;
+    private static final Map<String, String> NAMED_COLORS = new HashMap<>();
+
+    static {
+        NAMED_COLORS.put("black", "#000000");
+        NAMED_COLORS.put("dark_blue", "#0000AA");
+        NAMED_COLORS.put("dark_green", "#00AA00");
+        NAMED_COLORS.put("dark_aqua", "#00AAAA");
+        NAMED_COLORS.put("dark_red", "#AA0000");
+        NAMED_COLORS.put("dark_purple", "#AA00AA");
+        NAMED_COLORS.put("gold", "#FFAA00");
+        NAMED_COLORS.put("gray", "#AAAAAA");
+        NAMED_COLORS.put("dark_gray", "#555555");
+        NAMED_COLORS.put("blue", "#5555FF");
+        NAMED_COLORS.put("green", "#55FF55");
+        NAMED_COLORS.put("aqua", "#55FFFF");
+        NAMED_COLORS.put("red", "#FF5555");
+        NAMED_COLORS.put("light_purple", "#FF55FF");
+        NAMED_COLORS.put("yellow", "#FFFF55");
+        NAMED_COLORS.put("white", "#FFFFFF");
+    }
 
     @Override
     public void onEnable() {
@@ -33,6 +53,7 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         loadPlayerColors();
         setupScoreboard();
         getServer().getPluginManager().registerEvents(this, this);
+        getCommand("chromatag").setTabCompleter(new ChromaTagTabCompleter());
         getLogger().info("ChromaTag plugin has been enabled!");
     }
 
@@ -64,6 +85,16 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         FileConfiguration config = this.getConfig();
         for (Map.Entry<UUID, TextColor> entry : playerColors.entrySet()) {
             config.set("player-colors." + entry.getKey().toString(), "#" + Integer.toHexString(entry.getValue().value()));
+        }
+        saveConfig();
+    }
+
+    private void savePlayerColor(UUID playerUUID, TextColor color) {
+        FileConfiguration config = this.getConfig();
+        if (color != null) {
+            config.set("player-colors." + playerUUID.toString(), "#" + Integer.toHexString(color.value()));
+        } else {
+            config.set("player-colors." + playerUUID.toString(), null);
         }
         saveConfig();
     }
@@ -102,34 +133,31 @@ public final class ChromaTag extends JavaPlugin implements Listener {
                 return true;
             }
 
-            if (colorOrAction.equalsIgnoreCase("reload")) {
-                if (!player.hasPermission("chromatag.reload")) {
-                    player.sendMessage(Component.text("You don't have permission to reload the plugin.").color(NamedTextColor.RED));
-                    return true;
-                }
-                reloadConfig();
-                loadPlayerColors();
-                player.sendMessage(Component.text("ChromaTag configuration reloaded.").color(NamedTextColor.GREEN));
-                return true;
-            }
-
             if (!player.hasPermission("chromatag.set")) {
                 player.sendMessage(Component.text("You don't have permission to set colors.").color(NamedTextColor.RED));
                 return true;
             }
 
-            TextColor color = TextColor.fromHexString(colorOrAction);
+            TextColor color = getColorFromString(colorOrAction);
             if (color == null) {
-                player.sendMessage(Component.text("Invalid color. Please use a hex color code (e.g., #FF0000 for red).").color(NamedTextColor.RED));
+                player.sendMessage(Component.text("Invalid color. Please use a hex code or color name.").color(NamedTextColor.RED));
                 return true;
             }
 
             playerColors.put(targetPlayer.getUniqueId(), color);
             updatePlayerName(targetPlayer);
+            savePlayerColor(targetPlayer.getUniqueId(), color);
             player.sendMessage(Component.text(targetPlayer.getName() + "'s name color has been updated!").color(color));
             return true;
         }
         return false;
+    }
+
+    private TextColor getColorFromString(String colorString) {
+        if (NAMED_COLORS.containsKey(colorString.toLowerCase())) {
+            colorString = NAMED_COLORS.get(colorString.toLowerCase());
+        }
+        return TextColor.fromHexString(colorString);
     }
 
     @EventHandler
@@ -180,6 +208,7 @@ public final class ChromaTag extends JavaPlugin implements Listener {
     private void resetPlayerColor(Player player) {
         playerColors.remove(player.getUniqueId());
         updatePlayerName(player);
+        savePlayerColor(player.getUniqueId(), null);
     }
 
     private NamedTextColor findClosestNamedColor(TextColor color) {
