@@ -32,7 +32,7 @@ Black, Dark Blue, Dark Green, Dark Aqua, Dark Red, Dark Purple, Gold, Gray, Dark
 ## Essentials Integration
 ChromaTag automatically detects and integrates with the Essentials plugin if it's present on your server. This integration ensures that player nicknames set through Essentials maintain the color assigned by ChromaTag.
 
-For optimal functionality with ChromaTag, you may want to modify your Essentials configuration:
+Note - you may want to modify your Essentials configuration by doing the following to get rid of the annoying tilde (~) before player's names:
 
 1. Open your Essentials `config.yml` file.
 2. Find the `nickname-prefix` setting.
