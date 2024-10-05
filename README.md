@@ -7,6 +7,7 @@
 - Colors appear in chat, tab list, and above player heads
 - Permissions-based color setting and resetting
 - Persistent color storage across server restarts
+- Seamless integration with Essentials if present, but fully functional as a standalone plugin
 
 ## Installation
 1. Download the latest release [here](https://github.com/Jelly-Pudding/ChromaTag/releases/latest).
@@ -27,6 +28,18 @@ The plugin automatically saves player colors in `config.yml`. You don't need to 
 
 ## Predefined Color Names
 Black, Dark Blue, Dark Green, Dark Aqua, Dark Red, Dark Purple, Gold, Gray, Dark Gray, Blue, Green, Aqua, Red, Light Purple, Yellow, White
+
+## Essentials Integration
+ChromaTag automatically detects and integrates with the Essentials plugin if it's present on your server. This integration ensures that player nicknames set through Essentials maintain the color assigned by ChromaTag.
+
+For optimal functionality with ChromaTag, you may want to modify your Essentials configuration:
+
+1. Open your Essentials `config.yml` file.
+2. Find the `nickname-prefix` setting.
+3. Change it to an empty string like this:
+   ```yaml
+   nickname-prefix: ''
+   ```
 
 ## Support Me
 Donations to my [Patreon](https://www.patreon.com/lolwhatyesme) will help with the development of this project.
