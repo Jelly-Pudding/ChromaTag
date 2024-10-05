@@ -9,9 +9,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -23,11 +21,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import com.earth2me.essentials.Essentials;
+
 public final class ChromaTag extends JavaPlugin implements Listener {
 
     private Map<UUID, TextColor> playerColors;
     private Scoreboard scoreboard;
     private static final Map<String, String> NAMED_COLORS = new HashMap<>();
+    private Essentials essentials;
+    private boolean useEssentials = false;
 
     static {
         NAMED_COLORS.put("black", "#000000");
@@ -54,6 +56,7 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         playerColors = new HashMap<>();
         loadPlayerColors();
         setupScoreboard();
+        setupEssentials();
         getServer().getPluginManager().registerEvents(this, this);
         getCommand("chromatag").setTabCompleter(new ChromaTagTabCompleter());
         getLogger().info("ChromaTag plugin has been enabled!");
@@ -67,6 +70,16 @@ public final class ChromaTag extends JavaPlugin implements Listener {
 
     private void setupScoreboard() {
         scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+    }
+
+    private void setupEssentials() {
+        if (getServer().getPluginManager().getPlugin("Essentials") != null) {
+            essentials = (Essentials) getServer().getPluginManager().getPlugin("Essentials");
+            useEssentials = true;
+            getLogger().info("ChromaTag detected Essentials. ChromaTag supports Essentials so this is fine.");
+        } else {
+            getLogger().info("ChromaTag did not detect Essentials. ChromaTag supports Essentials but it is not essential. This is fine.");
+        }
     }
 
     private void loadPlayerColors() {
@@ -164,52 +177,40 @@ public final class ChromaTag extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        updatePlayerName(event.getPlayer());
+        Player player = event.getPlayer();
+        UUID playerUUID = player.getUniqueId();
+
+        TextColor color;
+        if (playerColors.containsKey(playerUUID)) {
+            color = playerColors.get(playerUUID);
+        } else {
+            color = NamedTextColor.WHITE; // Default color
+            playerColors.put(playerUUID, color);
+            savePlayerColor(playerUUID, color);
+        }
+
+        // Always update the player's name color on join
+        updatePlayerName(player);
+
+        // Set custom join message
+        Component joinMessage = Component.text(player.getName()).color(color)
+                .append(Component.text(" joined the game").color(NamedTextColor.YELLOW));
+        event.joinMessage(joinMessage);
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        removePlayerFromTeam(event.getPlayer());
-    }
-
-    @EventHandler(priority = EventPriority.HIGHEST)
-    public void onPlayerChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
-        TextColor color = playerColors.getOrDefault(player.getUniqueId(), NamedTextColor.WHITE);
-        NamedTextColor closestColor = findClosestNamedColor(color);
-        String colorCode = getColorCode(closestColor);
+        TextColor color = playerColors.get(player.getUniqueId());
+        if (color == null) {
+            color = NamedTextColor.WHITE;
+        }
 
-        // Create a custom display name with our color
-        String displayName = colorCode + player.getName() + "§r";
-
-        // Set the format, using our custom display name
-        String format = "<%1$s> §f%2$s";
-        event.setFormat(format);
-
-        // Replace the %1$s with our custom display name
-        event.setMessage(event.getMessage().replace("%", "%%"));
-        format = String.format(format, displayName, "%2$s");
-        event.setFormat(format);
-    }
-
-    private String getColorCode(NamedTextColor color) {
-        if (color == NamedTextColor.BLACK) return "§0";
-        if (color == NamedTextColor.DARK_BLUE) return "§1";
-        if (color == NamedTextColor.DARK_GREEN) return "§2";
-        if (color == NamedTextColor.DARK_AQUA) return "§3";
-        if (color == NamedTextColor.DARK_RED) return "§4";
-        if (color == NamedTextColor.DARK_PURPLE) return "§5";
-        if (color == NamedTextColor.GOLD) return "§6";
-        if (color == NamedTextColor.GRAY) return "§7";
-        if (color == NamedTextColor.DARK_GRAY) return "§8";
-        if (color == NamedTextColor.BLUE) return "§9";
-        if (color == NamedTextColor.GREEN) return "§a";
-        if (color == NamedTextColor.AQUA) return "§b";
-        if (color == NamedTextColor.RED) return "§c";
-        if (color == NamedTextColor.LIGHT_PURPLE) return "§d";
-        if (color == NamedTextColor.YELLOW) return "§e";
-        if (color == NamedTextColor.WHITE) return "§f";
-        return "§f"; // Default to white if no match
+        // Set custom quit message
+        Component quitMessage = Component.text(player.getName()).color(color)
+                .append(Component.text(" left the game").color(NamedTextColor.YELLOW));
+        event.quitMessage(quitMessage);
+        removePlayerFromTeam(player);
     }
 
     private void updatePlayerName(Player player) {
@@ -219,6 +220,12 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         player.displayName(displayName);
         player.playerListName(displayName);
 
+        if (useEssentials) {
+            String colorCode = getEssentialsColorCode(color);
+            String coloredName = colorCode + player.getName();
+            essentials.getUser(player.getUniqueId()).setNickname(coloredName);
+        }
+
         // Update scoreboard team
         String teamName = "ChromaTag_" + player.getUniqueId().toString().substring(0, 8);
         Team team = scoreboard.getTeam(teamName);
@@ -226,11 +233,8 @@ public final class ChromaTag extends JavaPlugin implements Listener {
             team = scoreboard.registerNewTeam(teamName);
         }
 
-        // Find the closest NamedTextColor
         NamedTextColor closestNamedColor = findClosestNamedColor(color);
         team.color(closestNamedColor);
-
-        // Use the exact color in the prefix
         team.prefix(Component.text("").color(color));
         team.suffix(Component.empty());
         team.addEntry(player.getName());
@@ -250,7 +254,7 @@ public final class ChromaTag extends JavaPlugin implements Listener {
     private void resetPlayerColor(Player player) {
         playerColors.remove(player.getUniqueId());
         updatePlayerName(player);
-        savePlayerColor(player.getUniqueId(), null);
+        savePlayerColor(player.getUniqueId(), NamedTextColor.WHITE);
     }
 
     private NamedTextColor findClosestNamedColor(TextColor color) {
@@ -272,5 +276,34 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         int r1 = color1.red(), g1 = color1.green(), b1 = color1.blue();
         int r2 = color2.red(), g2 = color2.green(), b2 = color2.blue();
         return Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
+    }
+
+    private String getEssentialsColorCode(TextColor color) {
+        if (color instanceof NamedTextColor) {
+            return "§" + getColorCode((NamedTextColor) color);
+        } else {
+            // For custom colors, find the closest named color
+            return "§" + getColorCode(findClosestNamedColor(color));
+        }
+    }
+
+    private String getColorCode(NamedTextColor color) {
+        if (color == NamedTextColor.BLACK) return "0";
+        if (color == NamedTextColor.DARK_BLUE) return "1";
+        if (color == NamedTextColor.DARK_GREEN) return "2";
+        if (color == NamedTextColor.DARK_AQUA) return "3";
+        if (color == NamedTextColor.DARK_RED) return "4";
+        if (color == NamedTextColor.DARK_PURPLE) return "5";
+        if (color == NamedTextColor.GOLD) return "6";
+        if (color == NamedTextColor.GRAY) return "7";
+        if (color == NamedTextColor.DARK_GRAY) return "8";
+        if (color == NamedTextColor.BLUE) return "9";
+        if (color == NamedTextColor.GREEN) return "a";
+        if (color == NamedTextColor.AQUA) return "b";
+        if (color == NamedTextColor.RED) return "c";
+        if (color == NamedTextColor.LIGHT_PURPLE) return "d";
+        if (color == NamedTextColor.YELLOW) return "e";
+        if (color == NamedTextColor.WHITE) return "f";
+        return "f"; // Default to white if no match
     }
 }
