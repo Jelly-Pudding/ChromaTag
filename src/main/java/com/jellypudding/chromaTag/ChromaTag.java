@@ -9,7 +9,9 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -168,6 +170,46 @@ public final class ChromaTag extends JavaPlugin implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         removePlayerFromTeam(event.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onPlayerChat(AsyncPlayerChatEvent event) {
+        Player player = event.getPlayer();
+        TextColor color = playerColors.getOrDefault(player.getUniqueId(), NamedTextColor.WHITE);
+        NamedTextColor closestColor = findClosestNamedColor(color);
+        String colorCode = getColorCode(closestColor);
+
+        // Create a custom display name with our color
+        String displayName = colorCode + player.getName() + "§r";
+
+        // Set the format, using our custom display name
+        String format = "<%1$s> §f%2$s";
+        event.setFormat(format);
+
+        // Replace the %1$s with our custom display name
+        event.setMessage(event.getMessage().replace("%", "%%"));
+        format = String.format(format, displayName, "%2$s");
+        event.setFormat(format);
+    }
+
+    private String getColorCode(NamedTextColor color) {
+        if (color == NamedTextColor.BLACK) return "§0";
+        if (color == NamedTextColor.DARK_BLUE) return "§1";
+        if (color == NamedTextColor.DARK_GREEN) return "§2";
+        if (color == NamedTextColor.DARK_AQUA) return "§3";
+        if (color == NamedTextColor.DARK_RED) return "§4";
+        if (color == NamedTextColor.DARK_PURPLE) return "§5";
+        if (color == NamedTextColor.GOLD) return "§6";
+        if (color == NamedTextColor.GRAY) return "§7";
+        if (color == NamedTextColor.DARK_GRAY) return "§8";
+        if (color == NamedTextColor.BLUE) return "§9";
+        if (color == NamedTextColor.GREEN) return "§a";
+        if (color == NamedTextColor.AQUA) return "§b";
+        if (color == NamedTextColor.RED) return "§c";
+        if (color == NamedTextColor.LIGHT_PURPLE) return "§d";
+        if (color == NamedTextColor.YELLOW) return "§e";
+        if (color == NamedTextColor.WHITE) return "§f";
+        return "§f"; // Default to white if no match
     }
 
     private void updatePlayerName(Player player) {

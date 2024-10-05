@@ -4,6 +4,7 @@ main: com.jellypudding.chromaTag.ChromaTag
 api-version: '1.21'
 description: "Customise player name colors for chat, the tab list, and above their heads."
 author: AlphaAlex115
+softdepend: [Essentials]
 commands:
   chromatag:
     description: "Set and manage player name colors"
