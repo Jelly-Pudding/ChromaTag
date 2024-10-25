@@ -50,6 +50,26 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         NAMED_COLORS.put("white", "#FFFFFF");
     }
 
+    private String getColorCode(NamedTextColor color) {
+        if (color == NamedTextColor.BLACK) return "0";
+        if (color == NamedTextColor.DARK_BLUE) return "1";
+        if (color == NamedTextColor.DARK_GREEN) return "2";
+        if (color == NamedTextColor.DARK_AQUA) return "3";
+        if (color == NamedTextColor.DARK_RED) return "4";
+        if (color == NamedTextColor.DARK_PURPLE) return "5";
+        if (color == NamedTextColor.GOLD) return "6";
+        if (color == NamedTextColor.GRAY) return "7";
+        if (color == NamedTextColor.DARK_GRAY) return "8";
+        if (color == NamedTextColor.BLUE) return "9";
+        if (color == NamedTextColor.GREEN) return "a";
+        if (color == NamedTextColor.AQUA) return "b";
+        if (color == NamedTextColor.RED) return "c";
+        if (color == NamedTextColor.LIGHT_PURPLE) return "d";
+        if (color == NamedTextColor.YELLOW) return "e";
+        if (color == NamedTextColor.WHITE) return "f";
+        return "f"; // Default to white if no match
+    }
+
     @Override
     public void onEnable() {
         saveDefaultConfig();
@@ -180,37 +200,31 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         Player player = event.getPlayer();
         UUID playerUUID = player.getUniqueId();
 
-        TextColor color;
         if (playerColors.containsKey(playerUUID)) {
-            color = playerColors.get(playerUUID);
-        } else {
-            color = NamedTextColor.WHITE; // Default color
-            playerColors.put(playerUUID, color);
-            savePlayerColor(playerUUID, color);
+            TextColor color = playerColors.get(playerUUID);
+            updatePlayerName(player);
+
+            // Set custom join message for players with custom color
+            Component joinMessage = Component.text(player.getName()).color(color)
+                    .append(Component.text(" joined the game").color(NamedTextColor.YELLOW));
+            event.joinMessage(joinMessage);
         }
-
-        // Always update the player's name color on join
-        updatePlayerName(player);
-
-        // Set custom join message
-        Component joinMessage = Component.text(player.getName()).color(color)
-                .append(Component.text(" joined the game").color(NamedTextColor.YELLOW));
-        event.joinMessage(joinMessage);
+        // If player doesn't have a color, let the default join message handle it
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
         TextColor color = playerColors.get(player.getUniqueId());
-        if (color == null) {
-            color = NamedTextColor.WHITE;
-        }
 
-        // Set custom quit message
-        Component quitMessage = Component.text(player.getName()).color(color)
-                .append(Component.text(" left the game").color(NamedTextColor.YELLOW));
-        event.quitMessage(quitMessage);
-        removePlayerFromTeam(player);
+        if (color != null) {
+            // Set custom quit message only for players with custom color
+            Component quitMessage = Component.text(player.getName()).color(color)
+                    .append(Component.text(" left the game").color(NamedTextColor.YELLOW));
+            event.quitMessage(quitMessage);
+            removePlayerFromTeam(player);
+        }
+        // If player doesn't have a color, let the default quit message handle it
     }
 
     private void updatePlayerName(Player player) {
@@ -253,8 +267,22 @@ public final class ChromaTag extends JavaPlugin implements Listener {
 
     private void resetPlayerColor(Player player) {
         playerColors.remove(player.getUniqueId());
-        updatePlayerName(player);
-        savePlayerColor(player.getUniqueId(), NamedTextColor.WHITE);
+        removePlayerFromTeam(player);
+
+        // Remove from config completely rather than setting to null
+        FileConfiguration config = this.getConfig();
+        config.set("player-colors." + player.getUniqueId().toString(), null);
+        saveConfig();
+
+        // Reset their name without storing a default color
+        Component displayName = Component.text(player.getName());
+        player.displayName(displayName);
+        player.playerListName(displayName);
+
+        // Reset Essentials nickname if using Essentials
+        if (useEssentials) {
+            essentials.getUser(player.getUniqueId()).setNickname(null);
+        }
     }
 
     private NamedTextColor findClosestNamedColor(TextColor color) {
@@ -285,25 +313,5 @@ public final class ChromaTag extends JavaPlugin implements Listener {
             // For custom colors, find the closest named color
             return "§" + getColorCode(findClosestNamedColor(color));
         }
-    }
-
-    private String getColorCode(NamedTextColor color) {
-        if (color == NamedTextColor.BLACK) return "0";
-        if (color == NamedTextColor.DARK_BLUE) return "1";
-        if (color == NamedTextColor.DARK_GREEN) return "2";
-        if (color == NamedTextColor.DARK_AQUA) return "3";
-        if (color == NamedTextColor.DARK_RED) return "4";
-        if (color == NamedTextColor.DARK_PURPLE) return "5";
-        if (color == NamedTextColor.GOLD) return "6";
-        if (color == NamedTextColor.GRAY) return "7";
-        if (color == NamedTextColor.DARK_GRAY) return "8";
-        if (color == NamedTextColor.BLUE) return "9";
-        if (color == NamedTextColor.GREEN) return "a";
-        if (color == NamedTextColor.AQUA) return "b";
-        if (color == NamedTextColor.RED) return "c";
-        if (color == NamedTextColor.LIGHT_PURPLE) return "d";
-        if (color == NamedTextColor.YELLOW) return "e";
-        if (color == NamedTextColor.WHITE) return "f";
-        return "f"; // Default to white if no match
     }
 }
