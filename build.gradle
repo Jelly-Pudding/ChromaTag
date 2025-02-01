@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'com.jellypudding'
-version = '1.0.2'
+version = '1.0.3'
 
 repositories {
     mavenCentral()
@@ -22,8 +22,9 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.3-R0.1-SNAPSHOT")
-    compileOnly("net.essentialsx:EssentialsX:2.20.1")
+    compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
+    // Uncomment the following line if you want Essentials integration:
+    // compileOnly("net.essentialsx:EssentialsX:2.20.1")
 }
 
 def targetJavaVersion = 21
@@ -38,7 +39,6 @@ java {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-
     if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
         options.release.set(targetJavaVersion)
     }

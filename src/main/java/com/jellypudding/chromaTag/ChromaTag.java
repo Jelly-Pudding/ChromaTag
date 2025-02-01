@@ -6,6 +6,7 @@ import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -17,19 +18,24 @@ import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 import org.jetbrains.annotations.NotNull;
 
+import org.bukkit.command.PluginCommand;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import com.earth2me.essentials.Essentials;
+// Essentials integration is currently disabled.
+// import com.earth2me.essentials.Essentials;
 
 public final class ChromaTag extends JavaPlugin implements Listener {
 
     private Map<UUID, TextColor> playerColors;
     private Scoreboard scoreboard;
     private static final Map<String, String> NAMED_COLORS = new HashMap<>();
-    private Essentials essentials;
-    private boolean useEssentials = false;
+
+    // Essentials integration disabled:
+    // private Essentials essentials;
+    // private boolean useEssentials = false;
 
     static {
         NAMED_COLORS.put("black", "#000000");
@@ -76,9 +82,16 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         playerColors = new HashMap<>();
         loadPlayerColors();
         setupScoreboard();
-        setupEssentials();
+        // Essentials integration disabled:
+        // setupEssentials();
         getServer().getPluginManager().registerEvents(this, this);
-        getCommand("chromatag").setTabCompleter(new ChromaTagTabCompleter());
+
+        PluginCommand chromaCommand = getCommand("chromatag");
+        if (chromaCommand != null) {
+            chromaCommand.setTabCompleter(new ChromaTagTabCompleter());
+        } else {
+            getLogger().warning("Command 'chromatag' not defined in plugin.yml!");
+        }
         getLogger().info("ChromaTag plugin has been enabled!");
     }
 
@@ -92,6 +105,8 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
     }
 
+    // Essentials integration disabled:
+    /*
     private void setupEssentials() {
         if (getServer().getPluginManager().getPlugin("Essentials") != null) {
             essentials = (Essentials) getServer().getPluginManager().getPlugin("Essentials");
@@ -101,16 +116,23 @@ public final class ChromaTag extends JavaPlugin implements Listener {
             getLogger().info("ChromaTag did not detect Essentials. ChromaTag supports Essentials but it is not essential. This is fine.");
         }
     }
+    */
 
     private void loadPlayerColors() {
         FileConfiguration config = this.getConfig();
-        if (config.contains("player-colors")) {
-            for (String uuidString : config.getConfigurationSection("player-colors").getKeys(false)) {
-                UUID uuid = UUID.fromString(uuidString);
+        ConfigurationSection section = config.getConfigurationSection("player-colors");
+        if (section != null) {
+            for (String uuidString : section.getKeys(false)) {
                 String colorString = config.getString("player-colors." + uuidString);
-                TextColor color = TextColor.fromHexString(colorString);
-                if (color != null) {
-                    playerColors.put(uuid, color);
+                if (colorString != null) {
+                    TextColor color = TextColor.fromHexString(colorString);
+                    if (color != null) {
+                        playerColors.put(UUID.fromString(uuidString), color);
+                    } else {
+                        getLogger().warning("Failed to parse color for player: " + uuidString);
+                    }
+                } else {
+                    getLogger().warning("No color string found for player: " + uuidString);
                 }
             }
         }
@@ -189,6 +211,9 @@ public final class ChromaTag extends JavaPlugin implements Listener {
     }
 
     private TextColor getColorFromString(String colorString) {
+        if (colorString == null) {
+            return null;
+        }
         if (NAMED_COLORS.containsKey(colorString.toLowerCase())) {
             colorString = NAMED_COLORS.get(colorString.toLowerCase());
         }
@@ -209,7 +234,6 @@ public final class ChromaTag extends JavaPlugin implements Listener {
                     .append(Component.text(" joined the game").color(NamedTextColor.YELLOW));
             event.joinMessage(joinMessage);
         }
-        // If player doesn't have a color, let the default join message handle it
     }
 
     @EventHandler
@@ -218,13 +242,12 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         TextColor color = playerColors.get(player.getUniqueId());
 
         if (color != null) {
-            // Set custom quit message only for players with custom color
+            // Set custom quit message only for players with a custom color
             Component quitMessage = Component.text(player.getName()).color(color)
                     .append(Component.text(" left the game").color(NamedTextColor.YELLOW));
             event.quitMessage(quitMessage);
             removePlayerFromTeam(player);
         }
-        // If player doesn't have a color, let the default quit message handle it
     }
 
     private void updatePlayerName(Player player) {
@@ -234,11 +257,14 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         player.displayName(displayName);
         player.playerListName(displayName);
 
+        // Essentials integration disabled:
+        /*
         if (useEssentials) {
             String colorCode = getEssentialsColorCode(color);
             String coloredName = colorCode + player.getName();
             essentials.getUser(player.getUniqueId()).setNickname(coloredName);
         }
+        */
 
         // Update scoreboard team
         String teamName = "ChromaTag_" + player.getUniqueId().toString().substring(0, 8);
@@ -279,10 +305,12 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         player.displayName(displayName);
         player.playerListName(displayName);
 
-        // Reset Essentials nickname if using Essentials
+        // Essentials integration disabled:
+        /*
         if (useEssentials) {
             essentials.getUser(player.getUniqueId()).setNickname(null);
         }
+        */
     }
 
     private NamedTextColor findClosestNamedColor(TextColor color) {
@@ -306,6 +334,8 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         return Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
     }
 
+    // Essentials integration disabled:
+    /*
     private String getEssentialsColorCode(TextColor color) {
         if (color instanceof NamedTextColor) {
             return "§" + getColorCode((NamedTextColor) color);
@@ -314,4 +344,5 @@ public final class ChromaTag extends JavaPlugin implements Listener {
             return "§" + getColorCode(findClosestNamedColor(color));
         }
     }
+    */
 }
