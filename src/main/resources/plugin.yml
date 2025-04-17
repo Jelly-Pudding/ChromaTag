@@ -1,25 +1,25 @@
 name: ChromaTag
-version: '1.0.3'
+version: '1.1.0'
 main: com.jellypudding.chromaTag.ChromaTag
 api-version: '1.21'
 description: "Customise player name colors for chat, the tab list, and above their heads."
 author: AlphaAlex115
-# If Essentials integration is not being used, you can comment out softdepend:
-# softdepend: [Essentials]
 commands:
   chromatag:
     description: "Set and manage player name colors"
-    usage: "/chromatag <color|reset>"
+    usage: "/chromatag <color|reset> [player]"
     aliases: [ct]
-    permission: chromatag.use
     permission-message: "You don't have permission to use ChromaTag."
 permissions:
-  chromatag.use:
-    description: "Allows use of the ChromaTag command"
+  chromatag.set.self:
+    description: "Allows setting own name color"
     default: op
-  chromatag.set:
-    description: "Allows setting name colors"
+  chromatag.set.other:
+    description: "Allows setting other players' name colors"
     default: op
-  chromatag.reset:
-    description: "Allows resetting name colors to default"
+  chromatag.reset.self:
+    description: "Allows resetting own name color to default"
+    default: op
+  chromatag.reset.other:
+    description: "Allows resetting other players' name colors to default"
     default: op

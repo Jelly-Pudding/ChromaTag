@@ -1,45 +1,58 @@
 # ChromaTag Plugin
 
-**ChromaTag** is a Minecraft Paper 1.21.3 plugin that lets players customise their name colors across chat, tab list, and in-game nametags.
+**ChromaTag** is a Minecraft Paper 1.21.4 plugin that lets players customise their name colors across chat, tab list, and in-game nametags.
 
 ## Features
-- Set custom colors using hex codes or predefined color names
-- Colors appear in chat, tab list, and above player heads
-- Permissions-based color setting and resetting
-- Persistent color storage across server restarts
-- Seamless integration with Essentials if present, but fully functional as a standalone plugin
+- Set custom colors using hex codes (e.g. `#FF0000`, `FF0000`) or predefined color names (e.g. `red`, `dark_blue`).
+- Colors appear in chat, tab list, and above player heads.
+- Granular permissions for setting/resetting own or others' colors.
+- Persistent color storage using SQLite.
+- Simple API for other plugins to interact with player colors.
 
 ## Installation
-1. Download the latest release [here](https://github.com/Jelly-Pudding/ChromaTag/releases/latest).
+1. Download the latest `.jar` file from the [Releases page](https://github.com/Jelly-Pudding/ChromaTag/releases/latest).
 2. Place the `.jar` file in your Minecraft server's `plugins` folder.
-3. Restart your server.
+3. Restart your server. The plugin will create a `plugins/ChromaTag/chromatag.db` file to store colors.
 
 ## Configuration
-The plugin automatically saves player colors in `config.yml`. You don't need to manually edit this file unless you want to preset colors for players.
+Player color data is stored in `plugins/ChromaTag/chromatag.db`.
 
 ## Commands
-- `/chromatag <color> [player]`: Set your own or another player's name color. Color can be a hex code (e.g., #FF0000) or a predefined color name (e.g., red, blue, dark_aqua).
-- `/chromatag reset [player]`: Reset your own or another player's name color to default.
+- `/chromatag <color|#hex> [player]`: Sets the target player's name color. If `[player]` is omitted, sets your own color.
+  - Requires `chromatag.set.self` to set own color.
+  - Requires `chromatag.set.other` to set another player's color.
+- `/chromatag reset [player]`: Resets the target player's name color to default. If `[player]` is omitted, resets your own color.
+  - Requires `chromatag.reset.self` to reset own color.
+  - Requires `chromatag.reset.other` to reset another player's color.
+
+Aliases: `/ct`
 
 ## Permissions
-- `chromatag.use`: Allows use of the ChromaTag command (default: op)
-- `chromatag.set`: Allows setting name colors (default: op)
-- `chromatag.reset`: Allows resetting name colors to default (default: op)
+- `chromatag.set.self`: Allows setting own name color (default: op)
+- `chromatag.set.other`: Allows setting other players' name colors (default: op)
+- `chromatag.reset.self`: Allows resetting own name color to default (default: op)
+- `chromatag.reset.other`: Allows resetting other players' name colors to default (default: op)
+
+## API for Developers
+Other plugins can interact with ChromaTag:
+
+1.  Add `ChromaTag` to `depend` or `softdepend` in your `plugin.yml`.
+2.  Get the API instance:
+    ```java
+    Plugin chromaTagPlugin = Bukkit.getPluginManager().getPlugin("ChromaTag");
+    if (chromaTagPlugin instanceof com.jellypudding.chromaTag.ChromaTag api) {
+        // Use API methods
+    } else {
+        // ChromaTag not found or disabled
+    }
+    ```
+3.  Available methods:
+    - `api.getPlayerColor(UUID playerUUID)`: Returns the `TextColor` or `null`.
+    - `api.setPlayerColor(UUID playerUUID, TextColor color)`: Sets the player's color. Returns `boolean` (currently always true).
+    - `api.resetPlayerColor(UUID playerUUID)`: Resets the player's color. Returns `true` if a color was removed, `false` otherwise.
 
 ## Predefined Color Names
-Black, Dark Blue, Dark Green, Dark Aqua, Dark Red, Dark Purple, Gold, Gray, Dark Gray, Blue, Green, Aqua, Red, Light Purple, Yellow, White
-
-## Essentials Integration
-ChromaTag automatically detects and integrates with the Essentials plugin if it's present on your server. This integration ensures that player nicknames set through Essentials maintain the color assigned by ChromaTag.
-
-Note - you may want to modify your Essentials configuration by doing the following to get rid of the annoying tilde (~) before player's names:
-
-1. Open your Essentials `config.yml` file.
-2. Find the `nickname-prefix` setting.
-3. Change it to an empty string like this:
-   ```yaml
-   nickname-prefix: ''
-   ```
+`black`, `dark_blue`, `dark_green`, `dark_aqua`, `dark_red`, `dark_purple`, `gold`, `gray`, `dark_gray`, `blue`, `green`, `aqua`, `red`, `light_purple`, `yellow`, `white`
 
 ## Support Me
 Donations will help me with the development of this project.

@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'com.jellypudding'
-version = '1.0.3'
+version = '1.1.0'
 
 repositories {
     mavenCentral()
@@ -15,16 +15,11 @@ repositories {
         name = "sonatype"
         url = "https://oss.sonatype.org/content/groups/public/"
     }
-    maven {
-        name = "essentials-releases"
-        url = "https://repo.essentialsx.net/releases/"
-    }
 }
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
-    // Uncomment the following line if you want Essentials integration:
-    // compileOnly("net.essentialsx:EssentialsX:2.20.1")
+    implementation("org.xerial:sqlite-jdbc:3.45.3.0")
 }
 
 def targetJavaVersion = 21

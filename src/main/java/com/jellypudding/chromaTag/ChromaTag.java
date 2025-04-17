@@ -6,8 +6,6 @@ import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
-import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -20,22 +18,21 @@ import org.jetbrains.annotations.NotNull;
 
 import org.bukkit.command.PluginCommand;
 
+import java.io.File;
+import java.sql.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-
-// Essentials integration is currently disabled.
-// import com.earth2me.essentials.Essentials;
+import java.util.logging.Level;
 
 public final class ChromaTag extends JavaPlugin implements Listener {
 
     private Map<UUID, TextColor> playerColors;
     private Scoreboard scoreboard;
-    private static final Map<String, String> NAMED_COLORS = new HashMap<>();
+    private Connection connection;
+    private final String dbPath = getDataFolder().getAbsolutePath() + File.separator + "chromatag.db";
 
-    // Essentials integration disabled:
-    // private Essentials essentials;
-    // private boolean useEssentials = false;
+    private static final Map<String, String> NAMED_COLORS = new HashMap<>();
 
     static {
         NAMED_COLORS.put("black", "#000000");
@@ -56,34 +53,16 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         NAMED_COLORS.put("white", "#FFFFFF");
     }
 
-    private String getColorCode(NamedTextColor color) {
-        if (color == NamedTextColor.BLACK) return "0";
-        if (color == NamedTextColor.DARK_BLUE) return "1";
-        if (color == NamedTextColor.DARK_GREEN) return "2";
-        if (color == NamedTextColor.DARK_AQUA) return "3";
-        if (color == NamedTextColor.DARK_RED) return "4";
-        if (color == NamedTextColor.DARK_PURPLE) return "5";
-        if (color == NamedTextColor.GOLD) return "6";
-        if (color == NamedTextColor.GRAY) return "7";
-        if (color == NamedTextColor.DARK_GRAY) return "8";
-        if (color == NamedTextColor.BLUE) return "9";
-        if (color == NamedTextColor.GREEN) return "a";
-        if (color == NamedTextColor.AQUA) return "b";
-        if (color == NamedTextColor.RED) return "c";
-        if (color == NamedTextColor.LIGHT_PURPLE) return "d";
-        if (color == NamedTextColor.YELLOW) return "e";
-        if (color == NamedTextColor.WHITE) return "f";
-        return "f"; // Default to white if no match
-    }
-
     @Override
     public void onEnable() {
-        saveDefaultConfig();
         playerColors = new HashMap<>();
-        loadPlayerColors();
+        if (!setupDatabase()) {
+            getLogger().severe("Failed to initialize the database. Disabling ChromaTag.");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+        loadPlayerColorsFromDB();
         setupScoreboard();
-        // Essentials integration disabled:
-        // setupEssentials();
         getServer().getPluginManager().registerEvents(this, this);
 
         PluginCommand chromaCommand = getCommand("chromatag");
@@ -92,119 +71,202 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         } else {
             getLogger().warning("Command 'chromatag' not defined in plugin.yml!");
         }
+
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            applyColorToPlayer(player);
+        }
+
         getLogger().info("ChromaTag plugin has been enabled!");
     }
 
     @Override
     public void onDisable() {
-        savePlayerColors();
+        closeDatabaseConnection();
         getLogger().info("ChromaTag plugin has been disabled.");
+    }
+
+    private boolean setupDatabase() {
+        try {
+            Class.forName("org.sqlite.JDBC");
+            if (!getDataFolder().exists()) {
+                if (!getDataFolder().mkdirs()) {
+                    getLogger().severe("Could not create plugin data folder!");
+                    return false;
+                }
+            }
+            connection = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+            createTableIfNotExists();
+            return true;
+        } catch (SQLException e) {
+            getLogger().log(Level.SEVERE, "Could not connect to SQLite database!", e);
+            return false;
+        } catch (ClassNotFoundException e) {
+            getLogger().log(Level.SEVERE, "SQLite JDBC driver not found!", e);
+            return false;
+        }
+    }
+
+    private void createTableIfNotExists() {
+        String sql = "CREATE TABLE IF NOT EXISTS player_colors (" +
+                     "uuid TEXT PRIMARY KEY NOT NULL," +
+                     "color TEXT NOT NULL);";
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute(sql);
+        } catch (SQLException e) {
+            getLogger().log(Level.SEVERE, "Could not create database table!", e);
+        }
+    }
+
+    private void closeDatabaseConnection() {
+        try {
+            if (connection != null && !connection.isClosed()) {
+                connection.close();
+            }
+        } catch (SQLException e) {
+            getLogger().log(Level.SEVERE, "Could not close SQLite connection!", e);
+        }
+    }
+
+    private void loadPlayerColorsFromDB() {
+        String sql = "SELECT uuid, color FROM player_colors";
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                String uuidString = rs.getString("uuid");
+                String colorString = rs.getString("color");
+                try {
+                    UUID uuid = UUID.fromString(uuidString);
+                    TextColor color = TextColor.fromHexString(colorString);
+                    if (color != null) {
+                        playerColors.put(uuid, color);
+                    } else {
+                        getLogger().warning("Failed to parse color '" + colorString + "' for player: " + uuidString);
+                    }
+                } catch (IllegalArgumentException e) {
+                    getLogger().warning("Invalid UUID found in database: " + uuidString);
+                }
+            }
+            getLogger().info("Loaded " + playerColors.size() + " player colors from database.");
+        } catch (SQLException e) {
+            getLogger().log(Level.SEVERE, "Could not load player colors from database!", e);
+        }
+    }
+
+    private void savePlayerColorToDB(UUID playerUUID, TextColor color) {
+        String sql = "INSERT OR REPLACE INTO player_colors (uuid, color) VALUES (?, ?)";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, playerUUID.toString());
+            pstmt.setString(2, "#" + Integer.toHexString(color.value()));
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            getLogger().log(Level.SEVERE, "Could not save player color to database for " + playerUUID, e);
+        }
+    }
+
+    private void removePlayerColorFromDB(UUID playerUUID) {
+        String sql = "DELETE FROM player_colors WHERE uuid = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, playerUUID.toString());
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            getLogger().log(Level.SEVERE, "Could not remove player color from database for " + playerUUID, e);
+        }
     }
 
     private void setupScoreboard() {
         scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
     }
 
-    // Essentials integration disabled:
-    /*
-    private void setupEssentials() {
-        if (getServer().getPluginManager().getPlugin("Essentials") != null) {
-            essentials = (Essentials) getServer().getPluginManager().getPlugin("Essentials");
-            useEssentials = true;
-            getLogger().info("ChromaTag detected Essentials. ChromaTag supports Essentials so this is fine.");
-        } else {
-            getLogger().info("ChromaTag did not detect Essentials. ChromaTag supports Essentials but it is not essential. This is fine.");
-        }
-    }
-    */
-
-    private void loadPlayerColors() {
-        FileConfiguration config = this.getConfig();
-        ConfigurationSection section = config.getConfigurationSection("player-colors");
-        if (section != null) {
-            for (String uuidString : section.getKeys(false)) {
-                String colorString = config.getString("player-colors." + uuidString);
-                if (colorString != null) {
-                    TextColor color = TextColor.fromHexString(colorString);
-                    if (color != null) {
-                        playerColors.put(UUID.fromString(uuidString), color);
-                    } else {
-                        getLogger().warning("Failed to parse color for player: " + uuidString);
-                    }
-                } else {
-                    getLogger().warning("No color string found for player: " + uuidString);
-                }
-            }
-        }
-    }
-
-    private void savePlayerColors() {
-        FileConfiguration config = this.getConfig();
-        for (Map.Entry<UUID, TextColor> entry : playerColors.entrySet()) {
-            config.set("player-colors." + entry.getKey().toString(), "#" + Integer.toHexString(entry.getValue().value()));
-        }
-        saveConfig();
-    }
-
-    private void savePlayerColor(UUID playerUUID, TextColor color) {
-        FileConfiguration config = this.getConfig();
-        if (color != null) {
-            config.set("player-colors." + playerUUID.toString(), "#" + Integer.toHexString(color.value()));
-        } else {
-            config.set("player-colors." + playerUUID.toString(), null);
-        }
-        saveConfig();
-    }
-
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String[] args) {
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String @NotNull [] args) {
         if (command.getName().equalsIgnoreCase("chromatag")) {
-            if (!(sender instanceof Player player)) {
-                sender.sendMessage(Component.text("This command can only be used by players.").color(NamedTextColor.RED));
-                return true;
+            Player player = null;
+            if (sender instanceof Player) {
+                player = (Player) sender;
             }
 
             if (args.length < 1 || args.length > 2) {
-                player.sendMessage(Component.text("Usage: /chromatag <color|reset> [player]").color(NamedTextColor.RED));
+                if (player != null) player.sendMessage(Component.text("Usage: /chromatag <color|reset> [player]").color(NamedTextColor.RED));
+                else sender.sendMessage(Component.text("Usage: chromatag <color|reset> <player>"));
                 return true;
             }
 
-            Player targetPlayer = player;
+            Player targetPlayer;
             String colorOrAction = args[0];
 
             if (args.length == 2) {
-                targetPlayer = Bukkit.getPlayer(args[1]);
-                if (targetPlayer == null) {
-                    player.sendMessage(Component.text("Player not found: " + args[1]).color(NamedTextColor.RED));
+                if (player != null && !player.hasPermission("chromatag.set.other")) {
+                    player.sendMessage(Component.text("You don't have permission to set other players' colors.").color(NamedTextColor.RED));
                     return true;
                 }
+                targetPlayer = Bukkit.getPlayer(args[1]);
+                if (targetPlayer == null) {
+                    if (player != null) player.sendMessage(Component.text("Player not found: " + args[1]).color(NamedTextColor.RED));
+                    else sender.sendMessage(Component.text("Player not found: " + args[1]));
+                    return true;
+                }
+            } else {
+                if (player == null) {
+                    sender.sendMessage(Component.text("You must specify a player when running from console."));
+                    return true;
+                }
+                targetPlayer = player;
             }
 
             if (colorOrAction.equalsIgnoreCase("reset")) {
-                if (!player.hasPermission("chromatag.reset")) {
+                boolean hasPermission = (player == null)
+                    || (targetPlayer.equals(player) && player.hasPermission("chromatag.reset.self"))
+                    || (!targetPlayer.equals(player) && player.hasPermission("chromatag.reset.other"));
+
+                if (!hasPermission) {
                     player.sendMessage(Component.text("You don't have permission to reset colors.").color(NamedTextColor.RED));
                     return true;
                 }
-                resetPlayerColor(targetPlayer);
-                player.sendMessage(Component.text(targetPlayer.getName() + "'s name color has been reset to default.").color(NamedTextColor.GREEN));
+
+                boolean success = internalResetPlayerColor(targetPlayer);
+                if (success) {
+                    Component message = Component.text(targetPlayer.getName() + "'s name color has been reset to default.").color(NamedTextColor.GREEN);
+                    if (player != null) player.sendMessage(message);
+                    else sender.sendMessage(message);
+                } else {
+                    Component message = Component.text("Could not reset " + targetPlayer.getName() + "'s color (they might not have one set).").color(NamedTextColor.YELLOW);
+                    if (player != null) player.sendMessage(message);
+                    else sender.sendMessage(message);
+                }
                 return true;
             }
 
-            if (!player.hasPermission("chromatag.set")) {
+            boolean hasPermission = (player == null)
+                || (targetPlayer.equals(player) && player.hasPermission("chromatag.set.self"))
+                || (!targetPlayer.equals(player) && player.hasPermission("chromatag.set.other"));
+
+            if (!hasPermission) {
                 player.sendMessage(Component.text("You don't have permission to set colors.").color(NamedTextColor.RED));
                 return true;
             }
 
             TextColor color = getColorFromString(colorOrAction);
             if (color == null) {
-                player.sendMessage(Component.text("Invalid color. Please use a hex code or color name.").color(NamedTextColor.RED));
+                Component message = Component.text("Invalid color '" + colorOrAction + "'. Use hex (#RRGGBB) or name (e.g., red, dark_blue).").color(NamedTextColor.RED);
+                if (player != null) player.sendMessage(message);
+                else sender.sendMessage(message);
                 return true;
             }
 
-            playerColors.put(targetPlayer.getUniqueId(), color);
-            updatePlayerName(targetPlayer);
-            savePlayerColor(targetPlayer.getUniqueId(), color);
-            player.sendMessage(Component.text(targetPlayer.getName() + "'s name color has been updated!").color(color));
+            boolean success = internalSetPlayerColor(targetPlayer, color);
+            if (success) {
+                Component message = Component.text(targetPlayer.getName() + "'s name color has been updated!").color(color);
+                if (player != null) player.sendMessage(message);
+                else sender.sendMessage(message);
+                if (player == null || !targetPlayer.equals(player)) {
+                    targetPlayer.sendMessage(Component.text("Your name color has been set!").color(color));
+                }
+            } else {
+                Component message = Component.text("Failed to set color for " + targetPlayer.getName()).color(NamedTextColor.RED);
+                if (player != null) player.sendMessage(message);
+                else sender.sendMessage(message);
+            }
             return true;
         }
         return false;
@@ -214,22 +276,27 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         if (colorString == null) {
             return null;
         }
-        if (NAMED_COLORS.containsKey(colorString.toLowerCase())) {
-            colorString = NAMED_COLORS.get(colorString.toLowerCase());
+        String lowerCaseColorString = colorString.toLowerCase();
+        if (NAMED_COLORS.containsKey(lowerCaseColorString)) {
+            colorString = NAMED_COLORS.get(lowerCaseColorString);
         }
-        return TextColor.fromHexString(colorString);
+        if (!colorString.startsWith("#")) {
+            colorString = "#" + colorString;
+        }
+        try {
+            return TextColor.fromHexString(colorString);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        UUID playerUUID = player.getUniqueId();
+        applyColorToPlayer(player);
 
-        if (playerColors.containsKey(playerUUID)) {
-            TextColor color = playerColors.get(playerUUID);
-            updatePlayerName(player);
-
-            // Set custom join message for players with custom color
+        TextColor color = playerColors.get(player.getUniqueId());
+        if (color != null) {
             Component joinMessage = Component.text(player.getName()).color(color)
                     .append(Component.text(" joined the game").color(NamedTextColor.YELLOW));
             event.joinMessage(joinMessage);
@@ -242,33 +309,47 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         TextColor color = playerColors.get(player.getUniqueId());
 
         if (color != null) {
-            // Set custom quit message only for players with a custom color
             Component quitMessage = Component.text(player.getName()).color(color)
                     .append(Component.text(" left the game").color(NamedTextColor.YELLOW));
             event.quitMessage(quitMessage);
-            removePlayerFromTeam(player);
         }
+
+        removePlayerFromTeam(player);
     }
 
-    private void updatePlayerName(Player player) {
-        TextColor color = playerColors.getOrDefault(player.getUniqueId(), NamedTextColor.WHITE);
-        Component displayName = Component.text(player.getName()).color(color);
+    private void applyColorToPlayer(Player player) {
+        TextColor color = playerColors.get(player.getUniqueId());
+        updatePlayerVisuals(player, color);
+    }
+
+    private void updatePlayerVisuals(Player player, TextColor color) {
+        Component displayName;
+        if (color != null) {
+            displayName = Component.text(player.getName()).color(color);
+        } else {
+            displayName = Component.text(player.getName());
+        }
 
         player.displayName(displayName);
         player.playerListName(displayName);
 
-        // Essentials integration disabled:
-        /*
-        if (useEssentials) {
-            String colorCode = getEssentialsColorCode(color);
-            String coloredName = colorCode + player.getName();
-            essentials.getUser(player.getUniqueId()).setNickname(coloredName);
-        }
-        */
+        updateScoreboardTeam(player, color);
+    }
 
-        // Update scoreboard team
-        String teamName = "ChromaTag_" + player.getUniqueId().toString().substring(0, 8);
+    private void updateScoreboardTeam(Player player, TextColor color) {
+        String teamName = getTeamName(player.getUniqueId());
         Team team = scoreboard.getTeam(teamName);
+
+        if (color == null) {
+            if (team != null) {
+                team.removeEntry(player.getName());
+                if (team.getEntries().isEmpty()) {
+                    team.unregister();
+                }
+            }
+            return;
+        }
+
         if (team == null) {
             team = scoreboard.registerNewTeam(teamName);
         }
@@ -277,11 +358,14 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         team.color(closestNamedColor);
         team.prefix(Component.text("").color(color));
         team.suffix(Component.empty());
-        team.addEntry(player.getName());
+
+        if (!team.hasEntry(player.getName())) {
+            team.addEntry(player.getName());
+        }
     }
 
     private void removePlayerFromTeam(Player player) {
-        String teamName = "ChromaTag_" + player.getUniqueId().toString().substring(0, 8);
+        String teamName = getTeamName(player.getUniqueId());
         Team team = scoreboard.getTeam(teamName);
         if (team != null) {
             team.removeEntry(player.getName());
@@ -291,26 +375,27 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         }
     }
 
-    private void resetPlayerColor(Player player) {
-        playerColors.remove(player.getUniqueId());
-        removePlayerFromTeam(player);
+    private String getTeamName(UUID uuid) {
+        return "CT_" + uuid.toString().substring(0, 13);
+    }
 
-        // Remove from config completely rather than setting to null
-        FileConfiguration config = this.getConfig();
-        config.set("player-colors." + player.getUniqueId().toString(), null);
-        saveConfig();
-
-        // Reset their name without storing a default color
-        Component displayName = Component.text(player.getName());
-        player.displayName(displayName);
-        player.playerListName(displayName);
-
-        // Essentials integration disabled:
-        /*
-        if (useEssentials) {
-            essentials.getUser(player.getUniqueId()).setNickname(null);
+    private boolean internalResetPlayerColor(Player player) {
+        UUID uuid = player.getUniqueId();
+        if (playerColors.containsKey(uuid)) {
+            playerColors.remove(uuid);
+            removePlayerColorFromDB(uuid);
+            updatePlayerVisuals(player, null);
+            return true;
         }
-        */
+        return false;
+    }
+
+    private boolean internalSetPlayerColor(Player player, TextColor color) {
+        UUID uuid = player.getUniqueId();
+        playerColors.put(uuid, color);
+        savePlayerColorToDB(uuid, color);
+        updatePlayerVisuals(player, color);
+        return true;
     }
 
     private NamedTextColor findClosestNamedColor(TextColor color) {
@@ -324,7 +409,6 @@ public final class ChromaTag extends JavaPlugin implements Listener {
                 closestColor = namedColor;
             }
         }
-
         return closestColor;
     }
 
@@ -334,15 +418,30 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         return Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
     }
 
-    // Essentials integration disabled:
-    /*
-    private String getEssentialsColorCode(TextColor color) {
-        if (color instanceof NamedTextColor) {
-            return "§" + getColorCode((NamedTextColor) color);
-        } else {
-            // For custom colors, find the closest named color
-            return "§" + getColorCode(findClosestNamedColor(color));
-        }
+    public TextColor getPlayerColor(UUID playerUUID) {
+        return playerColors.get(playerUUID);
     }
-    */
+
+    public boolean setPlayerColor(@NotNull UUID playerUUID, @NotNull TextColor color) {
+        playerColors.put(playerUUID, color);
+        savePlayerColorToDB(playerUUID, color);
+        Player onlinePlayer = Bukkit.getPlayer(playerUUID);
+        if (onlinePlayer != null) {
+            updatePlayerVisuals(onlinePlayer, color);
+        }
+        return true;
+    }
+
+    public boolean resetPlayerColor(@NotNull UUID playerUUID) {
+        if (playerColors.containsKey(playerUUID)) {
+            playerColors.remove(playerUUID);
+            removePlayerColorFromDB(playerUUID);
+            Player onlinePlayer = Bukkit.getPlayer(playerUUID);
+            if (onlinePlayer != null) {
+                updatePlayerVisuals(onlinePlayer, null);
+            }
+            return true;
+        }
+        return false;
+    }
 }
