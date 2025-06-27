@@ -1,16 +1,21 @@
 name: ChromaTag
-version: '1.1.0'
+version: '1.2.0'
 main: com.jellypudding.chromaTag.ChromaTag
 api-version: '1.21'
-description: "Customise player name colors for chat, the tab list, and above their heads."
+description: "Customise player name colours for chat, the tab list, and above their heads."
 author: AlphaAlex115
+website: www.minecraftoffline.net
 commands:
   chromatag:
     description: "Set and manage player name colors"
     usage: "/chromatag <color|reset> [player]"
     aliases: [ct]
+    permission: chromatag.use
     permission-message: "You don't have permission to use ChromaTag."
 permissions:
+  chromatag.use:
+    description: "Allows using ChromaTag commands"
+    default: op
   chromatag.set.self:
     description: "Allows setting own name color"
     default: op

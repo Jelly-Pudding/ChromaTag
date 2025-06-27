@@ -22,6 +22,10 @@ public class ChromaTagTabCompleter implements TabCompleter {
 
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, String[] args) {
+        if (!sender.hasPermission("chromatag.use")) {
+            return new ArrayList<>();
+        }
+
         List<String> completions = new ArrayList<>();
 
         if (args.length == 1) {

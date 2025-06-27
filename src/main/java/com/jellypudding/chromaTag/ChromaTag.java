@@ -57,7 +57,7 @@ public final class ChromaTag extends JavaPlugin implements Listener {
     public void onEnable() {
         playerColors = new HashMap<>();
         if (!setupDatabase()) {
-            getLogger().severe("Failed to initialize the database. Disabling ChromaTag.");
+            getLogger().severe("Failed to initialise the database. Disabling ChromaTag.");
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
@@ -69,14 +69,14 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         if (chromaCommand != null) {
             chromaCommand.setTabCompleter(new ChromaTagTabCompleter());
         } else {
-            getLogger().warning("Command 'chromatag' not defined in plugin.yml!");
+            getLogger().warning("Command 'chromatag' not defined in plugin.yml.");
         }
 
         for (Player player : Bukkit.getOnlinePlayers()) {
             applyColorToPlayer(player);
         }
 
-        getLogger().info("ChromaTag plugin has been enabled!");
+        getLogger().info("ChromaTag plugin has been enabled.");
     }
 
     @Override
@@ -90,7 +90,7 @@ public final class ChromaTag extends JavaPlugin implements Listener {
             Class.forName("org.sqlite.JDBC");
             if (!getDataFolder().exists()) {
                 if (!getDataFolder().mkdirs()) {
-                    getLogger().severe("Could not create plugin data folder!");
+                    getLogger().severe("Could not create plugin data folder.");
                     return false;
                 }
             }
@@ -98,10 +98,10 @@ public final class ChromaTag extends JavaPlugin implements Listener {
             createTableIfNotExists();
             return true;
         } catch (SQLException e) {
-            getLogger().log(Level.SEVERE, "Could not connect to SQLite database!", e);
+            getLogger().log(Level.SEVERE, "Could not connect to SQLite database.", e);
             return false;
         } catch (ClassNotFoundException e) {
-            getLogger().log(Level.SEVERE, "SQLite JDBC driver not found!", e);
+            getLogger().log(Level.SEVERE, "SQLite JDBC driver not found.", e);
             return false;
         }
     }
@@ -113,7 +113,7 @@ public final class ChromaTag extends JavaPlugin implements Listener {
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(sql);
         } catch (SQLException e) {
-            getLogger().log(Level.SEVERE, "Could not create database table!", e);
+            getLogger().log(Level.SEVERE, "Could not create database table.", e);
         }
     }
 
@@ -123,7 +123,7 @@ public final class ChromaTag extends JavaPlugin implements Listener {
                 connection.close();
             }
         } catch (SQLException e) {
-            getLogger().log(Level.SEVERE, "Could not close SQLite connection!", e);
+            getLogger().log(Level.SEVERE, "Could not close SQLite connection.", e);
         }
     }
 
