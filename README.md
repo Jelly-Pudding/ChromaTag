@@ -1,6 +1,6 @@
 # ChromaTag Plugin
 
-**ChromaTag** is a Minecraft Paper 1.21.6 plugin that lets players customise their name colors across chat, tab list, and in-game nametags.
+**ChromaTag** is a Minecraft Paper 1.21.7 plugin that lets players customise their name colors across chat, tab list, and in-game nametags.
 
 ## Features
 - Set custom colors using hex codes (e.g. `#FF0000`, `FF0000`) or predefined color names (e.g. `red`, `dark_blue`).
