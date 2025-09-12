@@ -5,6 +5,7 @@ api-version: '1.21'
 description: "Customise player name colours for chat, the tab list, and above their heads."
 author: AlphaAlex115
 website: www.minecraftoffline.net
+loadbefore: [OfflineStore, DiscordRelay]
 commands:
   chromatag:
     description: "Set and manage player name colors"
