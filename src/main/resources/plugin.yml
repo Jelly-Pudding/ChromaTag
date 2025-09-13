@@ -1,5 +1,5 @@
 name: ChromaTag
-version: '1.2.2'
+version: '1.2.3'
 main: com.jellypudding.chromaTag.ChromaTag
 api-version: '1.21'
 description: "Customise player name colours for chat, the tab list, and above their heads."
