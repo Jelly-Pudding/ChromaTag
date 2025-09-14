@@ -24,6 +24,9 @@ Player color data is stored in `plugins/ChromaTag/chromatag.db`.
 - `/chromatag reset [player]`: Resets the target player's name color to default. If `[player]` is omitted, resets your own color.
   - Requires `chromatag.reset.self` to reset own color.
   - Requires `chromatag.reset.other` to reset another player's color.
+- `/chromatag getcolor <player>`: Gets a player's color as a hex value (for example `#FF5555`). Works with offline players.
+  - Requires `chromatag.getcolor` permission.
+  - Returns `#FFFFFF` (white) if the player has no custom color set.
 
 Aliases: `/ct`
 
@@ -33,6 +36,7 @@ Aliases: `/ct`
 - `chromatag.set.other`: Allows setting other players' name colors (default: op)
 - `chromatag.reset.self`: Allows resetting own name color to default (default: op)
 - `chromatag.reset.other`: Allows resetting other players' name colors to default (default: op)
+- `chromatag.getcolor`: Allows getting player name colors as hex values (default: op)
 
 ## API for Developers
 Other plugins can interact with ChromaTag:

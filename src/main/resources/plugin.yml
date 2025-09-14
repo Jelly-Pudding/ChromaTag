@@ -1,5 +1,5 @@
 name: ChromaTag
-version: '1.2.3'
+version: '1.2.4'
 main: com.jellypudding.chromaTag.ChromaTag
 api-version: '1.21'
 description: "Customise player name colours for chat, the tab list, and above their heads."
@@ -9,7 +9,7 @@ loadbefore: [OfflineStore, DiscordRelay]
 commands:
   chromatag:
     description: "Set and manage player name colors"
-    usage: "/chromatag <color|reset> [player]"
+    usage: "/chromatag <color|reset|getcolor> [player]"
     aliases: [ct]
     permission: chromatag.use
     permission-message: "You don't have permission to use ChromaTag."
@@ -28,4 +28,7 @@ permissions:
     default: op
   chromatag.reset.other:
     description: "Allows resetting other players' name colors to default"
+    default: op
+  chromatag.getcolor:
+    description: "Allows getting player name colors as hex values"
     default: op

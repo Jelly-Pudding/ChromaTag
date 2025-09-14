@@ -31,6 +31,7 @@ public class ChromaTagTabCompleter implements TabCompleter {
         if (args.length == 1) {
             completions.addAll(COLORS);
             completions.add("reset");
+            completions.add("getcolor");
             return filterCompletions(completions, args[0]);
         } else if (args.length == 2) {
             return Bukkit.getOnlinePlayers().stream()
