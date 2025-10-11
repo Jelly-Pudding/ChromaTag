@@ -75,6 +75,10 @@ public final class ChromaTag extends JavaPlugin {
             updatePlayerVisuals(player);
         }
 
+        // Initialise bStats
+        int pluginId = 27553;
+        new Metrics(this, pluginId);
+
         getLogger().info("ChromaTag plugin has been enabled.");
     }
 
