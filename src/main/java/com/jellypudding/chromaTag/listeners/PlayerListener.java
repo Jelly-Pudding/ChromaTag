@@ -22,15 +22,12 @@ public class PlayerListener implements Listener {
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-
-        plugin.loadPlayerColorFromDB(player.getUniqueId());
-        plugin.updatePlayerVisuals(player);
+        plugin.loadAndApply(player);
 
         TextColor color = plugin.getPlayerColor(player.getUniqueId());
         if (color != null) {
-            Component joinMessage = Component.text(player.getName()).color(color)
-                    .append(Component.text(" joined the game").color(NamedTextColor.YELLOW));
-            event.joinMessage(joinMessage);
+            event.joinMessage(Component.text(player.getName()).color(color)
+                    .append(Component.text(" joined the game").color(NamedTextColor.YELLOW)));
         }
     }
 
@@ -40,13 +37,10 @@ public class PlayerListener implements Listener {
         TextColor color = plugin.getPlayerColor(player.getUniqueId());
 
         if (color != null) {
-            Component quitMessage = Component.text(player.getName()).color(color)
-                    .append(Component.text(" left the game").color(NamedTextColor.YELLOW));
-            event.quitMessage(quitMessage);
+            event.quitMessage(Component.text(player.getName()).color(color)
+                    .append(Component.text(" left the game").color(NamedTextColor.YELLOW)));
         }
 
-        plugin.removePlayerFromTeam(player);
-
-        plugin.removePlayerFromMemory(player.getUniqueId());
+        plugin.evict(player);
     }
 }
